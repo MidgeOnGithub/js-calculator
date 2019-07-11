@@ -187,52 +187,30 @@ const submit = document.querySelector('[id="="]');
 submit.addEventListener('click', runCalculations);
 
 function handleKeyPress(e) {
-    console.log(e);
+    button = convertKeyToButton(e.key);
+    let element = document.querySelector(`[id='${button}']`)
+    if (element)
+        element.click();
+}
 
-    if (e.defaultPrevented) {
-        return; // Do nothing if the event was already processed
-    }
-    
-    switch (e.key) {
+function convertKeyToButton(key) {
+    let button;
+
+    // Handle special key cases that should convert to our button keys.
+    switch (key) {
         case "Escape":
-            clearAll();
+            button = 'CE'
             break;
-
-        case "Backspace": 
-            // TODO: Backspace eventually.
+        case "Backspace":
             break;
-
         case "Enter":
-        case "=":
-            runCalculations();
+            button = '=';
             break;
-
-        case "0":
-        case "1":
-        case "2":
-        case "3":
-        case "4":
-        case "5":
-        case "6":
-        case "7":
-        case "8":
-        case "9":
-            updateBuffer(parseInt(e.key));
-            break;
-
-        case "/":
-        case "*":
-        case "+":
-        case "-":
-            updateBuffer(e.key)
-            break;
-
         default:
-            return; // Quit when this doesn't handle the key event.
+            button = key;
     }
 
-    // Cancel the default action to avoid it being handled twice
-    e.preventDefault();
+    return button;
 }
 
 window.addEventListener('keydown', handleKeyPress, true);
