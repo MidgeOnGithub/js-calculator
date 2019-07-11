@@ -1,7 +1,4 @@
-const numKeyCodes = ['48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105'];
-const opKeyCodes = ['106, 107, 109, 111']
 const operators = ['+', '-', '*', '/'];
-const display = document.querySelector('.display p');
 
 function add(a, b) {
     return a + b;
@@ -34,11 +31,20 @@ function operate(a, operator, b) {
         return divide(a, b);
 }
 
+// Convert the first and every other element after into `number` types.
+function convertElementsToNumbers() {
+    for (let i = 0; i < buffer.length; i += 2) {
+        buffer[i] = Number(buffer[i]);
+    }
+}
+
 // Perform the operations necessary to clear the buffer.
 function runCalculations() {
     if (buffer.length < 3) {
         return;
     }
+
+    convertElementsToNumbers();
 
     // Perform the calculations.
     let result = null;
@@ -49,7 +55,7 @@ function runCalculations() {
         let [a, operator, b] = buffer.slice(i, i + 3);
         if (result) {
             a = result;
-        } 
+        }
         result = operate(a, operator, b);
     }
 
@@ -67,47 +73,58 @@ function runCalculations() {
     }
 }
 
-// Trim a number so it fits within the display.
+// Ensure a number fits within the display.
 function trimNumber(number) {
     let numStr = number.toString();
     if (numStr.length > 13) {
         if (numStr.includes('e')) {
-            // The number is big enough to be in scientific notation,
-            // Just remove the decimals so it's small enough.
-            let decimal = numStr.indexOf('.');
-            let e = numStr.indexOf('e');
-            let numArr = numStr.split('');
-            // The splice method returns what's deleted,
-            // so its usage cannot be chained nicely.
-            numArr.splice(decimal, e - decimal);
-            numStr = numArr.join('');
-            return Number(numStr);
+            return trimScientific(numStr);
         }
         if (numStr.includes('.')) {
-            // The number has a decimal point.
-            let decimal = numStr.indexOf('.');
-            if (decimal <= 12 && decimal !== -1) {
-                // The decimal point occurs before the text overflows,
-                // so remove all digits past the last fitting digit.
-                return parseFloat(number.toFixed(12 - decimal));
-            } else {
-                // The decimal point occurs after the text overflows,
-                // so remove all decimals, then shorten the number.
-                Math.trunc(number);
-                numStr = number.toString();
-                numStr = numStr.slice(0, 13);
-                return parseInt(numStr);
-            }
+            return trimDecimal(number, numStr);
         } else {
-            // Number does not have a decimal, just cut it and lose accuracy.
+            // Neither decimal nor scientific notation; cut the number
+            // short. This loses information, but this is standard
+            // behavior for many calculators.
             numStr = numStr.slice(0, 13);
             return parseInt(numStr);
         }
     } else {
-        // Number fits and no action is needed.
+        // No trimming required.
         return number;
     }
 }
+
+// Help `trimNumber` handle proper floats.
+function trimDecimal(number, numStr) {
+    let decimal = numStr.indexOf('.');
+    if (decimal <= 12 && decimal !== -1) {
+        // The decimal point occurs before the text overflows,
+        // so remove all digits past the last fitting digit.
+        return parseFloat(number.toFixed(12 - decimal));
+    } else {
+        // The decimal point occurs after the text overflows,
+        // so remove all decimals and shorten the number.
+        Math.trunc(number);
+        numStr = number.toString();
+        numStr = numStr.slice(0, 13);
+        return parseInt(numStr);
+    }
+}
+
+// Help `trimNumber` handle numbers in scientific notation.
+function trimScientific(numStr) {
+    // Remove the decimal and numbers after to ensure the number fits.
+    let decimal = numStr.indexOf('.');
+    let e = numStr.indexOf('e');
+    let numArr = numStr.split('');
+    // The splice method returns what's deleted,
+    // so its usage cannot be chained nicely.
+    numArr.splice(decimal, e - decimal);
+    numStr = numArr.join('');
+    return Number(numStr);
+}
+
 // Clear the buffer and reset the display.
 function clearAll() {
     buffer = [];
@@ -115,76 +132,88 @@ function clearAll() {
     display.textContent = '...';
 }
 
-// Update the operation buffer and display.
-function updateBuffer(input) {
-    let inputIsOperator = operators.includes(input);
+// Help `handleInput` with digit and decimal inputs.
+function handleNumber(digit) {
     if (buffer.length === 0) {
-        // The buffer is empty, add the input if it's a number.
-        if (inputIsOperator)
-            return;
-        buffer.push(input);
+        // Numbers and decimals go first in the buffer.
+        buffer.push(digit);
     } else {
-        // The buffer is not empty, so do some extra checks.
         let lastElement = buffer[buffer.length - 1];
         let lastElemIsOperator = operators.includes(lastElement);
-        if (inputIsOperator) {
-            // Only allow one operator between numbers,
-            // don't allow excessive calculations in one buffer.
-            if (lastElemIsOperator || buffer.length >= 8)
-                return;
-            else
-                buffer.push(input);
-                blockForResult = false;
+        if (lastElemIsOperator) {
+            buffer.push(digit);
         } else {
-            if (lastElemIsOperator) {
-                buffer.push(input);
-                blockForResult = false;
-            } else {
-                // If the number currently displayed is the last
-                // calculation reseult, numbers may not be appended.
-                if (blockForResult)
-                    return;
-                // Block the input if it overflows the display line.
-                if (lastElement.toString().length === 13)
-                    return;
-                buffer[buffer.length - 1] = lastElement * 10 + input;
+            lastElemStr = lastElement.toString();
+            // If the number currently displayed is the last
+            // calculation result, numbers may not be appended.
+            if (blockForResult) {
+                return;
             }
+    
+            if (digit === '.') {
+                // Allow only one decimal point per number,
+                // and ensure that adding a decimal and a
+                // digit won't overflow the display.
+                if (lastElemStr.includes('.') || lastElemStr.length === 12) {
+                    return;
+                }
+            }
+    
+            // Block the input if it overflows the display line.
+            if (lastElemStr.length === 13)
+                return;
+            buffer[buffer.length - 1] = lastElement += digit;
         }
     }
-
-    updateDisplay(input, inputIsOperator);
 }
 
-function updateDisplay(input, inputIsOperator) {
+// Help `handleInput` with operator inputs.
+function handleOperator(op) {
+    if (buffer.length === 0) {
+        // Only numbers may go first in the buffer.
+        return;
+    } else {
+        let lastElement = buffer[buffer.length - 1];
+        let lastElemIsOperator = operators.includes(lastElement);
+        // Only allow one operator between numbers,
+        // allow only 4 calculations in the buffer.
+        if (lastElemIsOperator || buffer.length >= 8) {
+            return;
+        } else {
+            buffer.push(op);
+            blockForResult = false;
+        }
+    }
+}
+
+// Decide if the buffer should be updated, and refresh the display.
+function handleInput(input) {
+    if (this.className === 'operator') {
+        handleOperator(this.id);
+    } else {
+        handleNumber(this.id);
+    }
+
+    refreshDisplay();
+}
+
+// Refresh the calculator's display.
+function refreshDisplay() {
     // Clear the default text if present.
     if (display.textContent === '...')
         display.textContent = '';
-    // If symbol is an operator, place spaces around it.
-    inputIsOperator ? display.textContent += ` ${input} ` :
-                      display.textContent += input;
+    display.textContent = buffer.join(' ');
 }
 
 let blockForResult = false;
 let buffer = [];
 
-const digitButtons = document.querySelectorAll('.digits');
-[...digitButtons].forEach((button) => {
-    button.addEventListener('click', () => {
-        updateBuffer(parseInt(button.id));
-    })
-});
+const display = document.querySelector('.display p');
 
-const opButtons = document.querySelectorAll('.operators');
-[...opButtons].forEach((button) => {
-    button.addEventListener('click', () => {
-        updateBuffer(button.id);
-    })
+const inputButtons = document.querySelectorAll('.digit, .operator, .decimal');
+[...inputButtons].forEach((button) => {
+    button.addEventListener('click', handleInput);
 });
-
-const reset = document.querySelector('#CE');
-reset.addEventListener('click', clearAll);
-const submit = document.querySelector('[id="="]');
-submit.addEventListener('click', runCalculations);
 
 function handleKeyPress(e) {
     button = convertKeyToButton(e.key);
@@ -195,9 +224,8 @@ function handleKeyPress(e) {
 
 function convertKeyToButton(key) {
     let button;
-
-    // Handle special key cases that should convert to our button keys.
     switch (key) {
+        // Handle special key cases and convert to our button keys.
         case "Escape":
             button = 'CE'
             break;
@@ -209,8 +237,12 @@ function convertKeyToButton(key) {
         default:
             button = key;
     }
-
     return button;
 }
 
 window.addEventListener('keydown', handleKeyPress, true);
+
+const reset = document.querySelector('#CE');
+reset.addEventListener('click', clearAll);
+const submit = document.querySelector('[id="="]');
+submit.addEventListener('click', runCalculations);

@@ -55,10 +55,14 @@ button {
 }
 
 button:hover {
+    box-shadow: 1px 2px #000;
+    font-weight: bold;
+}
+
+button:active {
     background-color: #000;
     color: #fff;
     box-shadow: 0 0 #fff;
-    font-weight: bold;
 }
 
 .inputs {
@@ -74,7 +78,7 @@ button:hover {
         "7 8 9 div"
         "4 5 6 add"
         "1 2 3 sub"
-        "o o o eql";
+        "o o d eql";
     grid-gap: 8px
 }
 
@@ -83,7 +87,7 @@ button:hover {
     background-color: #ff6600;
 }
 
-.clear:hover {
+.clear:active {
     color: #ff6600;
 }
 
@@ -91,8 +95,8 @@ button:hover {
     grid-area: o;
 }
 
-[id="*"] {
-    text-align: bottom;
+[id="."] {
+    grid-area: d;
 }
 
 [id="="] {
@@ -101,7 +105,7 @@ button:hover {
     color: #fff;
 }
 
-[id="="]:hover {
+[id="="]:active {
     background-color: #ff6600;
     color: #000;
 }
@@ -116,7 +120,7 @@ button:hover {
     text-decoration: none;
 }
 
-.footer a:hover {
+.footer a:active {
     color: #000;
     text-decoration: underline;
 }
